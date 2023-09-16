@@ -46,6 +46,18 @@ func (b *BytePacketBuffer) Write(val uint8) (error) {
     return nil
 }
 
+func (b *BytePacketBuffer) Set(pos uint8, val uint8) (error) {
+    b.buf[pos] = val
+    return nil
+}
+
+
+func (b *BytePacketBuffer) SetU16(pos uint8, val uint16) (error) {
+    b.Set(pos, uint8(val >> 8))
+    b.Set(pos + 1, uint8(val & 0xff))
+    return nil
+}
+
 func (b *BytePacketBuffer) Get(pos uint16) (uint8, error) {
     if pos >= 512 {
         return 0, errors.New("End of buffer")

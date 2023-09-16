@@ -15,8 +15,8 @@ import (
 
 
 func main() {
-	qname := "google.com"
-	qtype := A
+	qname := "yahoo.com"
+	qtype := CNAME
 
 	server := "8.8.8.8:53"
 
@@ -44,7 +44,7 @@ func main() {
 		Name:  qname,
 		QType: QueryType{
 			query_type: uint16(qtype),
-			val: 1,
+			val: uint16(qtype),
 		},
 	}
 
