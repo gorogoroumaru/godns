@@ -29,3 +29,20 @@ func (q *DnsQuestion) Read(buffer *BytePacketBuffer) error {
 
     return nil
 }
+
+func (q *DnsQuestion) Write(buffer *BytePacketBuffer) error {
+	if err := buffer.WriteQName(&q.Name); err != nil {
+        return err
+    }
+
+	typeNum := q.QType.ToNum()
+	if err :=  buffer.WriteU16(typeNum); err != nil {
+        return err
+    }
+
+	if err :=  buffer.WriteU16(1); err != nil {
+        return err
+    }
+
+	return nil
+}

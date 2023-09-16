@@ -2,10 +2,11 @@ package main
 
 import (
 	"errors"
+	"strings"
 )
 
 type BytePacketBuffer struct {
-    buf [512]byte
+    buf [512]uint8
     pos uint16
 }
 
@@ -27,7 +28,7 @@ func (b *BytePacketBuffer) Seek(pos uint16) error {
     return nil
 }
 
-func (b *BytePacketBuffer) Read() (byte, error) {
+func (b *BytePacketBuffer) Read() (uint8, error) {
     if b.pos >= 512 {
         return 0, errors.New("End of buffer")
     }
@@ -36,14 +37,23 @@ func (b *BytePacketBuffer) Read() (byte, error) {
     return res, nil
 }
 
-func (b *BytePacketBuffer) Get(pos uint16) (byte, error) {
+func (b *BytePacketBuffer) Write(val uint8) (error) {
+    if b.pos >= 512 {
+        return errors.New("End of buffer")
+    }
+    b.buf[b.pos] = val
+    b.pos++
+    return nil
+}
+
+func (b *BytePacketBuffer) Get(pos uint16) (uint8, error) {
     if pos >= 512 {
         return 0, errors.New("End of buffer")
     }
     return b.buf[pos], nil
 }
 
-func (b *BytePacketBuffer) GetRange(start, length uint16) ([]byte, error) {
+func (b *BytePacketBuffer) GetRange(start, length uint16) ([]uint8, error) {
     if start+length >= 512 {
         return nil, errors.New("End of buffer")
     }
@@ -60,6 +70,15 @@ func (b *BytePacketBuffer) ReadU16() (uint16, error) {
         return 0, err
     }
     return uint16(high)<<8 | uint16(low), nil
+}
+
+func (b *BytePacketBuffer) WriteU16(val uint16) (error) {
+    if b.pos >= 512 {
+        return errors.New("End of buffer")
+    }
+    b.Write(uint8(val >> 8))
+    b.Write(uint8(val & 0xff))
+    return nil
 }
 
 func (b *BytePacketBuffer) ReadU32() (uint32, error) {
@@ -80,6 +99,17 @@ func (b *BytePacketBuffer) ReadU32() (uint32, error) {
         return 0, err
     }
     return (uint32(b1) << 24) | (uint32(b2) << 16) | (uint32(b3) << 8) | uint32(b4), nil
+}
+
+func (b *BytePacketBuffer) WriteU32(val uint32) (error) {
+    if b.pos >= 512 {
+        return errors.New("End of buffer")
+    }
+    b.Write(uint8((val >> 24) & 0xff))
+    b.Write(uint8((val >> 16) & 0xff))
+    b.Write(uint8((val >> 8) & 0xff))
+    b.Write(uint8(val & 0xff))
+    return nil
 }
 
 func (b *BytePacketBuffer) ReadQName(outstr *string) error {
@@ -138,4 +168,31 @@ func (b *BytePacketBuffer) ReadQName(outstr *string) error {
     }
 
     return nil
+}
+
+func (buffer *BytePacketBuffer) WriteQName(qname *string) error {
+	labels := strings.Split(*qname, ".")
+
+	for _, label := range labels {
+		length := len(label)
+		if length > 0x3F {
+			return errors.New("Single label exceeds 63 characters of length")
+		}
+
+		if err := buffer.Write(byte(length)); err != nil {
+			return err
+		}
+
+		for _, b := range []byte(label) {
+			if err := buffer.Write(b); err != nil {
+				return err
+			}
+		}
+	}
+
+	if err := buffer.Write(0); err != nil {
+		return err
+	}
+
+	return nil
 }

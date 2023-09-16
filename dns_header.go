@@ -67,3 +67,65 @@ func (h *DnsHeader) Read(buffer *BytePacketBuffer) error {
 
     return nil
 }
+
+func (header *DnsHeader) Write(buffer *BytePacketBuffer) error {
+	if err := buffer.WriteU16(header.ID); err != nil {
+		return err
+	}
+
+	header_byte_1 := uint8(0)
+	if header.RecursionDesired {
+		header_byte_1 |= 0x01
+	}
+	if header.TruncatedMessage {
+		header_byte_1 |= 0x02
+	}
+	if header.AuthoritativeAnswer {
+		header_byte_1 |= 0x04
+	}
+	header_byte_1 |= (header.Opcode & 0x0F) << 3
+	if header.Response {
+		header_byte_1 |= 0x80
+	}
+
+	if err := buffer.Write(header_byte_1); err != nil {
+		return err
+	}
+
+	header_byte_2 := uint8(0)
+	header_byte_2 |= (uint8(header.ResCode) & 0x0F)
+	if header.CheckingDisabled {
+		header_byte_2 |= 0x10
+	}
+	if header.AuthedData {
+		header_byte_2 |= 0x20
+	}
+	if header.Z {
+		header_byte_2 |= 0x40
+	}
+	if header.RecursionAvailable {
+		header_byte_2 |= 0x80
+	}
+
+	if err := buffer.Write(header_byte_2); err != nil {
+		return err
+	}
+
+	if err := buffer.WriteU16(header.Questions); err != nil {
+		return err
+	}
+
+	if err := buffer.WriteU16(header.Answers); err != nil {
+		return err
+	}
+
+	if err := buffer.WriteU16(header.AuthoritativeEntries); err != nil {
+		return err
+	}
+
+	if err := buffer.WriteU16(header.ResourceEntries); err != nil {
+		return err
+	}
+
+	return nil
+}

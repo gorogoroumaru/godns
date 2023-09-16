@@ -1,11 +1,14 @@
 package main
 
 import (
+	"errors"
+	"fmt"
 	"net"
 )
 
 type DnsRecord interface {
 	isDnsRecord()
+	Write(*BytePacketBuffer)(int, error)
 }
 
 type UnknownRecord struct {
@@ -17,6 +20,11 @@ type UnknownRecord struct {
 
 func (u *UnknownRecord) isDnsRecord() {}
 
+func (u *UnknownRecord) Write(buffer *BytePacketBuffer) (int, error) {
+	fmt.Println("Skipping record")
+	return 0, errors.New("Unsupported DNS record type")
+}
+
 type ARecord struct {
 	Domain string
 	Addr   net.IP
@@ -24,6 +32,46 @@ type ARecord struct {
 }
 
 func (a *ARecord) isDnsRecord() {}
+
+func (a *ARecord) Write(buffer *BytePacketBuffer) (int, error) {
+		startPos := buffer.pos
+
+		if err := buffer.WriteQName(&a.Domain); err != nil {
+			return 0, err
+		}
+		if err := buffer.WriteU16(A); err != nil {
+			return 0, err
+		}
+		if err := buffer.WriteU16(1); err != nil {
+			return 0, err
+		}
+		if err := buffer.WriteU32(a.TTL); err != nil {
+			return 0, err
+		}
+		if err := buffer.WriteU16(4); err != nil {
+			return 0, err
+		}
+
+		octets := a.Addr.To4()
+		if octets == nil {
+			return 0, errors.New("Invalid IPv4 address")
+		}
+
+		if err := buffer.Write(octets[0]); err != nil {
+			return 0, err
+		}
+		if err := buffer.Write(octets[1]); err != nil {
+			return 0, err
+		}
+		if err := buffer.Write(octets[2]); err != nil {
+			return 0, err
+		}
+		if err := buffer.Write(octets[3]); err != nil {
+			return 0, err
+		}
+
+	return int(buffer.pos - startPos), nil
+}
 
 func ReadDnsRecord(buffer *BytePacketBuffer) (DnsRecord, error) {
 	var domain string

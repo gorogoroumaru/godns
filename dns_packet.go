@@ -61,3 +61,40 @@ func ReadDnsPacket(buffer *BytePacketBuffer) (*DnsPacket, error) {
 
 	return dnsPacket, nil
 }
+
+func (packet *DnsPacket) Write(buffer *BytePacketBuffer) error {
+	packet.Header.Questions = uint16(len(packet.Questions))
+	packet.Header.Answers = uint16(len(packet.Answers))
+	packet.Header.AuthoritativeEntries = uint16(len(packet.Authorities))
+	packet.Header.ResourceEntries = uint16(len(packet.Resources))
+
+	if err := packet.Header.Write(buffer); err != nil {
+		return err
+	}
+
+	for _, question := range packet.Questions {
+		if err := question.Write(buffer); err != nil {
+			return err
+		}
+	}
+
+	for _, rec := range packet.Answers {
+		if _, err := rec.Write(buffer); err != nil {
+			return err
+		}
+	}
+
+	for _, rec := range packet.Authorities {
+		if _, err := rec.Write(buffer); err != nil {
+			return err
+		}
+	}
+
+	for _, rec := range packet.Resources {
+		if _, err := rec.Write(buffer); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
