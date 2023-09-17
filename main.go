@@ -1,5 +1,3 @@
-// goでdnsサーバー
-// https://github.com/EmilHernvall/dnsguide
 // qname圧縮に関する仕様の解説
 // http://park12.wakwak.com/~eslab/pcmemo/dns/dns5.html#condense
 
@@ -8,92 +6,87 @@ package main
 import (
 	"fmt"
 	"net"
-	"os"
 
 	"github.com/k0kubun/pp/v3"
 )
 
-
-func main() {
-	qname := "yahoo.com"
-	qtype := CNAME
-
-	server := "8.8.8.8:53"
-
-	serverAddr, err := net.ResolveUDPAddr("udp", server)
-	if err != nil {
-		fmt.Println("Error resolving server address:", err)
-		os.Exit(1)
-	}
-
-	localAddr, err := net.ResolveUDPAddr("udp", "0.0.0.0:43210")
-	if err != nil {
-		fmt.Println("Error resolving local address:", err)
-		os.Exit(1)
-	}
-
-	conn, err := net.DialUDP("udp", localAddr, serverAddr)
-	if err != nil {
-		fmt.Println("Error creating UDP socket:", err)
-		os.Exit(1)
-	}
-	defer conn.Close()
-
-
-	question := &DnsQuestion{
-		Name:  qname,
-		QType: QueryType{
-			query_type: uint16(qtype),
-			val: uint16(qtype),
-		},
-	}
-
-	packet := DnsPacket{
-		Header: &DnsHeader{
-			ID:               6666,
-			Questions:        1,
-			RecursionDesired: true,
-		},
-		Questions: []*DnsQuestion{question},
-	}
-
+func handleQuery(socket *net.UDPConn) error {
 	reqBuffer := NewBytePacketBuffer()
-	if err := packet.Write(reqBuffer); err != nil {
-		fmt.Println("Error writing request packet:", err)
-		os.Exit(1)
+
+	_, src, err := socket.ReadFromUDP(reqBuffer.buf[:])
+	if err != nil {
+		return err
 	}
 
-	_, err = conn.Write(reqBuffer.buf[:])
+	request, err := ReadDnsPacket(reqBuffer)
 	if err != nil {
-		fmt.Println("Error sending request packet:", err)
-		os.Exit(1)
+		return err
+	}
+
+	packet := &DnsPacket{
+		Header: &DnsHeader{
+			ID:                request.Header.ID,
+			RecursionDesired:  true,
+			RecursionAvailable: true,
+			Response:          true,
+		},
+	}
+
+	if len(request.Questions) > 0 {
+		question := request.Questions[0]
+		fmt.Printf("Received query: %+v\n", question)
+
+		result, err := Lookup(question.Name, question.QType)
+		if err != nil {
+			packet.Header.ResCode = SERVFAIL
+		} else {
+			packet.Questions = append(packet.Questions, question)
+			packet.Header.ResCode = result.Header.ResCode
+
+			for _, rec := range result.Answers {
+				fmt.Printf("Answer: ")
+				pp.Print(rec)
+				packet.Answers = append(packet.Answers, rec)
+			}
+			for _, rec := range result.Authorities {
+				fmt.Printf("Authority: ")
+				pp.Print(rec)
+				packet.Authorities = append(packet.Authorities, rec)
+			}
+			for _, rec := range result.Resources {
+				fmt.Printf("Resource: ")
+				pp.Print(rec)
+				packet.Resources = append(packet.Resources, rec)
+			}
+		}
+	} else {
+		packet.Header.ResCode = FORMERR
 	}
 
 	resBuffer := NewBytePacketBuffer()
-	_, _, err = conn.ReadFromUDP(resBuffer.buf[:])
+	err = packet.Write(resBuffer)
 	if err != nil {
-		fmt.Println("Error receiving response packet:", err)
-		os.Exit(1)
+		return err
 	}
 
-	resPacket, err := ReadDnsPacket(resBuffer)
+	_, err = socket.WriteToUDP(resBuffer.buf[:resBuffer.Pos()], src)
+	return err
+}
+
+func main() {
+	socket, err := net.ListenUDP("udp", &net.UDPAddr{IP: net.IPv4(0, 0, 0, 0), Port: 2053})
 	if err != nil {
-		fmt.Println("Error parsing response packet:", err)
-		os.Exit(1)
+		fmt.Printf("Failed to bind UDP socket: %v\n", err)
+		return
 	}
+	defer socket.Close()
 
-	pp.Print(resPacket.Header)
+	fmt.Println("Listening on UDP port 2053...")
 
-	for _, q := range resPacket.Questions {
-		pp.Print(q)
-	}
-	for _, rec := range resPacket.Answers {
-		pp.Print(rec)
-	}
-	for _, rec := range resPacket.Authorities {
-		pp.Print(rec)
-	}
-	for _, rec := range resPacket.Resources {
-		pp.Print(rec)
+	for {
+		err := handleQuery(socket)
+		if err != nil {
+			fmt.Println("An error occurred", err)
+		}
 	}
 }
