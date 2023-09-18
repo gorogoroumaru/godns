@@ -19,7 +19,23 @@ type DnsHeader struct {
 }
 
 func NewDnsHeader() *DnsHeader {
-    return &DnsHeader{}
+    return &DnsHeader{
+        ID: 0,
+        RecursionDesired: false,
+        TruncatedMessage: false,
+        AuthoritativeAnswer: false,
+        Opcode: 0,
+        Response: false,
+        ResCode: NOERROR,
+        CheckingDisabled: false,
+        AuthedData: false,
+        Z: false,
+        RecursionAvailable: false,
+        Questions: 0,
+        Answers: 0,
+        AuthoritativeEntries: 0,
+        ResourceEntries: 0,
+    }
 }
 
 func (h *DnsHeader) Read(buffer *BytePacketBuffer) error {
@@ -83,7 +99,7 @@ func (header *DnsHeader) Write(buffer *BytePacketBuffer) error {
 	if header.AuthoritativeAnswer {
 		header_byte_1 |= 0x04
 	}
-	header_byte_1 |= (header.Opcode & 0x0F) << 3
+	header_byte_1 |= header.Opcode << 3
 	if header.Response {
 		header_byte_1 |= 0x80
 	}

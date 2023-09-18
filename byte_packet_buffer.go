@@ -141,7 +141,7 @@ func (b *BytePacketBuffer) ReadQName(outstr *string) error {
             return err
         }
 
-        if lenByte&0xC0 == 0xC0 {
+        if lenByte & 0xC0 == 0xC0 {
             if !jumped {
                 b.Seek(pos + 2)
             }
@@ -187,7 +187,7 @@ func (buffer *BytePacketBuffer) WriteQName(qname *string) error {
 
 	for _, label := range labels {
 		length := len(label)
-		if length > 0x3F {
+		if length > 0x34 {
 			return errors.New("Single label exceeds 63 characters of length")
 		}
 

@@ -7,7 +7,7 @@ import (
 )
 
 type DnsRecord interface {
-	isDnsRecord()
+	getType() int
 	Write(*BytePacketBuffer)(int, error)
 }
 
@@ -18,7 +18,9 @@ type UnknownRecord struct {
 	TTL     uint32
 }
 
-func (u *UnknownRecord) isDnsRecord() {}
+func (u *UnknownRecord) getType() int {
+	return Unknown
+}
 
 func (u *UnknownRecord) Write(buffer *BytePacketBuffer) (int, error) {
 	fmt.Println("Skipping record")
@@ -31,7 +33,9 @@ type ARecord struct {
 	TTL    uint32
 }
 
-func (a *ARecord) isDnsRecord() {}
+func (a *ARecord) getType() int {
+	return A
+}
 
 func (a *ARecord) Write(buffer *BytePacketBuffer) (int, error) {
 		startPos := buffer.pos
@@ -79,7 +83,9 @@ type NSRecord struct {
 	TTL    uint32
 }
 
-func (ns *NSRecord) isDnsRecord() {}
+func (ns *NSRecord) getType() int {
+	return NS
+}
 
 func (ns *NSRecord) Write(buffer *BytePacketBuffer) (int, error) {
 	startPos := buffer.pos
@@ -117,7 +123,9 @@ type CNAMERecord struct {
 	TTL    uint32
 }
 
-func (cname *CNAMERecord) isDnsRecord() {}
+func (cname *CNAMERecord) getType() int {
+	return CNAME
+}
 
 func (cname *CNAMERecord) Write(buffer *BytePacketBuffer) (int, error) {
 	startPos := buffer.pos
@@ -156,7 +164,9 @@ type MXRecord struct {
 	TTL    uint32
 }
 
-func (mx *MXRecord) isDnsRecord() {}
+func (mx *MXRecord) getType() int {
+	return MX
+}
 
 func (mx *MXRecord) Write(buffer *BytePacketBuffer) (int, error) {
 	startPos := buffer.pos
@@ -194,7 +204,9 @@ type AAAARecord struct {
 	TTL    uint32
 }
 
-func (a4 *AAAARecord) isDnsRecord() {}
+func (a4 *AAAARecord) getType() int {
+	return AAAA
+}
 
 func (a4 *AAAARecord) Write(buffer *BytePacketBuffer) (int, error) {
 	startPos := buffer.pos

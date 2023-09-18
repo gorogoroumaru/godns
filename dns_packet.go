@@ -1,5 +1,10 @@
 package main
 
+import (
+	"net"
+	"strings"
+)
+
 type DnsPacket struct {
 	Header       *DnsHeader
 	Questions    []*DnsQuestion
@@ -97,4 +102,71 @@ func (packet *DnsPacket) Write(buffer *BytePacketBuffer) error {
 	}
 
 	return nil
+}
+
+func (p *DnsPacket) GetRandomA() <-chan net.IP {
+	resultChan := make(chan net.IP)
+
+	go func() {
+		defer close(resultChan)
+
+		for _, record := range p.Answers {
+			if record.getType() == A {
+				resultChan <- record.(*ARecord).Addr
+			}
+		}
+	}()
+
+	return resultChan
+}
+
+func (p *DnsPacket) GetNs(qname string) []string {
+	nsList := make([]string, 0)
+	for _, record := range p.Authorities {
+		if record.getType() == NS && strings.HasSuffix(qname, record.(*NSRecord).Domain){
+			nsList = append(nsList, record.(*NSRecord).Host)
+		}
+	}
+	return nsList
+}
+
+func (p *DnsPacket) GetResolvedNs(qname string) <-chan net.IP {
+	resultChan := make(chan net.IP)
+
+	go func() {
+		defer close(resultChan)
+
+		nsList := p.GetNs(qname)
+		for _, record := range p.Resources {
+			if record.getType() == A && contains(nsList, record.(*ARecord).Domain) {
+				resultChan <- record.(*ARecord).Addr
+			}
+		}
+	}()
+
+	return resultChan
+}
+
+func (p *DnsPacket) GetUnresolvedNs(qname string) <-chan string {
+	resultChan := make(chan string)
+
+	go func() {
+		defer close(resultChan)
+
+		nsList := p.GetNs(qname)
+		for _, ns := range nsList {
+			resultChan <- ns
+		}
+	}()
+
+	return resultChan
+}
+
+func contains(slice []string, s string) bool {
+	for _, str := range slice {
+		if str == s {
+			return true
+		}
+	}
+	return false
 }

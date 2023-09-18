@@ -1,6 +1,3 @@
-// qname圧縮に関する仕様の解説
-// http://park12.wakwak.com/~eslab/pcmemo/dns/dns5.html#condense
-
 package main
 
 import (
@@ -36,7 +33,8 @@ func handleQuery(socket *net.UDPConn) error {
 		question := request.Questions[0]
 		fmt.Printf("Received query: %+v\n", question)
 
-		result, err := Lookup(question.Name, question.QType)
+		result, err := RecursiveLookup(question.Name, question.QType)
+
 		if err != nil {
 			packet.Header.ResCode = SERVFAIL
 		} else {
