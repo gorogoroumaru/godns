@@ -214,7 +214,7 @@ func (a4 *AAAARecord) Write(buffer *BytePacketBuffer) (int, error) {
 	if err := buffer.WriteQName(&a4.Domain); err != nil {
 		return 0, err
 	}
-	if err := buffer.WriteU16(MX); err != nil {
+	if err := buffer.WriteU16(AAAA); err != nil {
 		return 0, err
 	}
 	if err := buffer.WriteU16(1); err != nil {

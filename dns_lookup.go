@@ -39,7 +39,7 @@ func Lookup(qname string, qtype QueryType, serverAddr *net.UDPAddr) (*DnsPacket,
 		return nil, err
 	}
 
-	_, err = conn.Write(reqBuffer.buf[:])
+	_, err = conn.Write(reqBuffer.buf[:reqBuffer.pos])
 	if err != nil {
 		return nil, err
 	}
@@ -61,7 +61,7 @@ func Lookup(qname string, qtype QueryType, serverAddr *net.UDPAddr) (*DnsPacket,
 }
 
 func RecursiveLookup(qname string, qtype QueryType) (*DnsPacket, error) {
-    ns := net.ParseIP("192.5.5.241").To4()
+    ns := net.ParseIP("198.41.0.4").To4()
     if ns == nil {
         return nil, errors.New("Failed to parse root server IP address")
     }
